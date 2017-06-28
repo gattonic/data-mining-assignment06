@@ -45,7 +45,6 @@ class Cluster:
         mixing_coefficients = self.get_mixing_coefficients()
         return Omega(mixing_coefficients, mean, variance)
 
-
     def remove_point(self, point):
         self.points.remove(point)
 
@@ -84,17 +83,57 @@ class Cluster:
 
     def calculate_new_mean(self, responsibility):
         enumerator = 0
-        denumerator = 0
-        for p in self.points:
+        denominator = 0
+        for p in self.all_points:
             enumerator += responsibility[p] * p.value
-            denumerator += responsibility[p]
+            denominator += responsibility[p]
 
-        return enumerator/denumerator
+        return enumerator / denominator
 
     def calculate_new_variance(self, responsibility):
+        mean_new = self.calculate_new_mean(responsibility)
         enumerator = 0
-        denumerator = 0
+        denominator = 0
+        for p in self.all_points:
+            enumerator += responsibility[p] * ((p.value - mean_new) ** 2)
+            denominator += responsibility[p]
 
+        return enumerator / denominator
+
+    def calculate_new_mixing_coefficients(self, responsibilities, clusters):
+        enumerator = 0
+        for p in self.all_points:
+            enumerator += responsibilities[self.index - 1][p]
+
+        denominator = 0
+        for c in clusters:
+            for p in self.all_points:
+                denominator += responsibilities[c.index - 1][p]
+
+        return enumerator / denominator
+
+    def do_m_step(self, responsibilities, clusters):
+        new_mean = self.calculate_new_mean(responsibilities[self.index - 1])
+        new_variance = self.calculate_new_variance(responsibilities[self.index - 1])
+        new_mixing_coefficients = self.calculate_new_mixing_coefficients(responsibilities, clusters)
+
+        self.omega = Omega(new_mixing_coefficients, new_mean, new_variance)
+
+    def update_points(self, responsibilities):
+        self.remove_all_points()
+
+        for p in self.all_points:
+            decision = True
+            for r in responsibilities:
+                if responsibilities[self.index - 1][p] < r[p]:
+                    decision = False
+
+            if decision:
+                self.points.add(p)
+
+
+    def remove_all_points(self):
+        self.points = set()
 
     def __str__(self):
         return "Cluster: " + self.points.__str__()
@@ -109,7 +148,3 @@ class Cluster:
         if isinstance(other, Cluster):
             return self.points == other.points
         return False
-
-
-
-
